@@ -1,434 +1,770 @@
-import { useState } from "react";
-import "./index.css";
+import { useEffect, useState } from "react";
 import WebApp from "@twa-dev/sdk";
+import "./index.css";
 
-WebApp.ready();
-WebApp.expand();
+function getStorage(key) {
+  try {
+    const data = localStorage.getItem(key);
 
-const products = [
-  {
-    id: 1,
-    title: "iPhone 14 Pro",
-    price: 24500,
-    city: "Житомир",
-    category: "Телефони",
-    image: "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?auto=format&fit=crop&w=800&q=80",
-    description:
-      "iPhone 14 Pro у відмінному стані. 256 GB пам'яті. Face ID працює. Комплект повний."
-  },
-  {
-    id: 2,
-    title: "PlayStation 5",
-    price: 18500,
-    city: "Київ",
-    category: "Ігри",
-    image: "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=800&q=80",
-    description:
-      "PlayStation 5 у хорошому стані. Один геймпад. Повністю справна."
-  },
-  {
-    id: 3,
-    title: "MacBook Air M2",
-    price: 36000,
-    city: "Львів",
-    category: "Ноутбуки",
-    image: "https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=800&q=80",
-    description:
-      "MacBook Air на M2. 8/256 GB. Батарея у відмінному стані."
-  },
-  {
-    id: 4,
-    title: "Nike Air Max",
-    price: 3200,
-    city: "Одеса",
-    category: "Одяг",
-    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80",
-    description:
-      "Оригінальні Nike Air Max. Розмір 42. Стан майже новий."
-  },
-  {
-    id: 5,
-    title: "Gaming PC RTX 4070",
-    price: 55000,
-    city: "Харків",
-    category: "Комп'ютери",
-    image: "https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=800&q=80",
-    description:
-      "Потужний ігровий ПК. RTX 4070, Ryzen 7, 32 GB RAM."
-  },
-  {
-    id: 6,
-    title: "Samsung Galaxy S24",
-    price: 27000,
-    city: "Дніпро",
-    category: "Телефони",
-    image: "https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?auto=format&fit=crop&w=800&q=80",
-    description:
-      "Samsung Galaxy S24. 256 GB. Стан нового телефону."
+    if (!data) {
+      return null;
+    }
+
+    return JSON.parse(data);
+  } catch (error) {
+    console.error(`Помилка localStorage (${key}):`, error);
+    localStorage.removeItem(key);
+    return null;
   }
-];
-
-const categories = [
-  "Всі",
-  "Телефони",
-  "Ноутбуки",
-  "Комп'ютери",
-  "Ігри",
-  "Одяг"
-];
+}
 
 function App() {
-  const user = WebApp.initDataUnsafe?.user;
-  const [page, setPage] = useState("home");
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [favorites, setFavorites] = useState([]);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("Всі");
-
-  const toggleFavorite = (id) => {
-    setFavorites((prev) =>
-      prev.includes(id)
-        ? prev.filter((item) => item !== id)
-        : [...prev, id]
-    );
-  };
-
-  const filteredProducts = products.filter((product) => {
-    const searchMatch =
-      product.title.toLowerCase().includes(search.toLowerCase());
-
-    const categoryMatch =
-      category === "Всі" || product.category === category;
-
-    return searchMatch && categoryMatch;
+  const [user, setUser] = useState(() => {
+    return getStorage("twitter_user");
   });
 
-  const openProduct = (product) => {
-    setSelectedProduct(product);
-    setPage("product");
-  };
+  const [posts, setPosts] = useState(() => {
+    return getStorage("twitter_posts") || [];
+  });
 
-  const goHome = () => {
-    setSelectedProduct(null);
-    setPage("home");
-  };
+  const [page, setPage] = useState("home");
+
+  const [registerName, setRegisterName] = useState("");
+  const [registerUsername, setRegisterUsername] = useState("");
+
+  const [postText, setPostText] = useState("");
+  const [postImage, setPostImage] = useState(null);
+
+  // Telegram Mini App
+  useEffect(() => {
+    try {
+      WebApp.ready();
+      WebApp.expand();
+
+      WebApp.setHeaderColor("#081321");
+      WebApp.setBackgroundColor("#050b14");
+    } catch (error) {
+      console.log("Telegram SDK працює тільки всередині Telegram");
+    }
+  }, []);
+
+  // Зберігаємо користувача
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("twitter_user", JSON.stringify(user));
+    }
+  }, [user]);
+
+  // Зберігаємо пости
+  useEffect(() => {
+    localStorage.setItem("twitter_posts", JSON.stringify(posts));
+  }, [posts]);
+
+  // Реєстрація
+  function register() {
+    const name = registerName.trim();
+    const username = registerUsername
+      .trim()
+      .replace("@", "");
+
+    if (!name || !username) {
+      alert("Заповни всі поля");
+      return;
+    }
+
+    if (username.length < 3) {
+      alert("Username повинен містити мінімум 3 символи");
+      return;
+    }
+
+    const newUser = {
+      id: Date.now(),
+      name: name,
+      username: username,
+      avatar: `https://i.pravatar.cc/150?img=${
+        Math.floor(Math.random() * 50) + 1
+      }`,
+    };
+
+    setUser(newUser);
+  }
+
+  // Вибір фото
+  function handleImage(event) {
+    const file = event.target.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("Можна завантажувати тільки фото");
+      return;
+    }
+
+    // Обмеження 5 MB
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Фото повинно бути менше 5 MB");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      setPostImage(reader.result);
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  // Створення поста
+  function createPost() {
+    if (!postText.trim() && !postImage) {
+      alert("Напиши щось або додай фото");
+      return;
+    }
+
+    const newPost = {
+      id: Date.now(),
+
+      text: postText.trim(),
+
+      image: postImage,
+
+      author: {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        avatar: user.avatar,
+      },
+
+      likes: 0,
+
+      liked: false,
+
+      comments: 0,
+
+      date: new Date().toLocaleString("uk-UA", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+
+    setPosts((currentPosts) => [
+      newPost,
+      ...currentPosts,
+    ]);
+
+    setPostText("");
+    setPostImage(null);
+  }
+
+  // Лайк
+  function likePost(id) {
+    setPosts((currentPosts) =>
+      currentPosts.map((post) => {
+        if (post.id !== id) {
+          return post;
+        }
+
+        return {
+          ...post,
+
+          liked: !post.liked,
+
+          likes: post.liked
+            ? post.likes - 1
+            : post.likes + 1,
+        };
+      })
+    );
+  }
+
+  // Видалення поста
+  function deletePost(id) {
+    const confirmed = window.confirm(
+      "Видалити цей пост?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setPosts((currentPosts) =>
+      currentPosts.filter((post) => post.id !== id)
+    );
+  }
+
+  // Вихід
+  function logout() {
+    localStorage.removeItem("twitter_user");
+    setUser(null);
+
+    setRegisterName("");
+    setRegisterUsername("");
+  }
+
+  // Кількість моїх постів
+  const myPosts = posts.filter(
+    (post) => post.author.id === user?.id
+  );
+
+  // ==============================
+  // REGISTRATION
+  // ==============================
+
+  if (!user) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+
+          <div className="big-logo">
+            𝕏
+          </div>
+
+          <h1>
+            Ласкаво просимо
+          </h1>
+
+          <p className="auth-subtitle">
+            Створи профіль та ділись своїми
+            думками, фотографіями та новинами.
+          </p>
+
+          <label>
+            Ім'я
+          </label>
+
+          <input
+            type="text"
+            placeholder="Наприклад, Артем"
+            value={registerName}
+            onChange={(event) =>
+              setRegisterName(event.target.value)
+            }
+          />
+
+          <label>
+            Username
+          </label>
+
+          <input
+            type="text"
+            placeholder="@artem"
+            value={registerUsername}
+            onChange={(event) =>
+              setRegisterUsername(event.target.value)
+            }
+          />
+
+          <button
+            className="main-button"
+            onClick={register}
+          >
+            Створити акаунт
+          </button>
+
+          <p className="auth-info">
+            Акаунт зберігається на цьому пристрої.
+          </p>
+
+        </div>
+      </div>
+    );
+  }
+
+  // ==============================
+  // MAIN APP
+  // ==============================
 
   return (
     <div className="app">
-            <h1>
-      Привіт, {user?.first_name || "користувач"} 👋
-    </h1>
-      <header className="header">
-        <div className="logo" onClick={goHome}>
-          <div className="logo-icon">T</div>
-          <span>T-SELL</span>
+
+      {/* SIDEBAR */}
+
+      <aside className="sidebar">
+
+        <div className="logo">
+          𝕏
         </div>
 
         <button
-          className="profile-button"
+          className={
+            page === "home"
+              ? "nav active"
+              : "nav"
+          }
+          onClick={() => setPage("home")}
+        >
+          <span className="nav-icon">
+            🏠
+          </span>
+
+          <span>
+            Головна
+          </span>
+        </button>
+
+        <button
+          className={
+            page === "profile"
+              ? "nav active"
+              : "nav"
+          }
           onClick={() => setPage("profile")}
         >
-          👤
+          <span className="nav-icon">
+            👤
+          </span>
+
+          <span>
+            Профіль
+          </span>
         </button>
-      </header>
 
-      {page === "home" && (
-        <main>
+        <button
+          className="nav logout"
+          onClick={logout}
+        >
+          <span className="nav-icon">
+            🚪
+          </span>
 
-          <section className="hero">
-            <h1>Знайди те, що шукаєш</h1>
-            <p>Купуй та продавай товари прямо в Telegram</p>
+          <span>
+            Вийти
+          </span>
+        </button>
 
-            <div className="search">
-              <span>🔎</span>
+      </aside>
 
-              <input
-                type="text"
-                placeholder="Пошук товарів..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+      {/* MAIN */}
+
+      <main className="main">
+
+        {/* =========================
+            HOME
+        ========================= */}
+
+        {page === "home" && (
+          <>
+
+            <header className="topbar">
+              <h2>
+                Головна
+              </h2>
+            </header>
+
+            {/* CREATE POST */}
+
+            <section className="create-post">
+
+              <img
+                className="avatar"
+                src={user.avatar}
+                alt="avatar"
               />
-            </div>
-          </section>
 
-          <section className="categories">
+              <div className="create-content">
 
-            <h2>Категорії</h2>
-
-            <div className="category-list">
-
-              {categories.map((item) => (
-                <button
-                  key={item}
-                  className={
-                    category === item
-                      ? "category active"
-                      : "category"
+                <textarea
+                  placeholder="Що нового?"
+                  value={postText}
+                  onChange={(event) =>
+                    setPostText(event.target.value)
                   }
-                  onClick={() => setCategory(item)}
-                >
-                  {item}
-                </button>
-              ))}
+                  maxLength={280}
+                />
 
-            </div>
+                {/* PHOTO PREVIEW */}
 
-          </section>
-
-          <section className="products">
-
-            <div className="section-title">
-              <h2>Нові оголошення</h2>
-              <span>{filteredProducts.length} товарів</span>
-            </div>
-
-            <div className="product-grid">
-
-              {filteredProducts.map((product) => (
-
-                <div
-                  className="product-card"
-                  key={product.id}
-                  onClick={() => openProduct(product)}
-                >
-
-                  <div className="image-container">
+                {postImage && (
+                  <div className="preview">
 
                     <img
-                      src={product.image}
-                      alt={product.title}
+                      src={postImage}
+                      alt="preview"
                     />
 
                     <button
-                      className="favorite"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFavorite(product.id);
-                      }}
+                      className="remove-image"
+                      onClick={() =>
+                        setPostImage(null)
+                      }
                     >
-                      {favorites.includes(product.id) ? "❤️" : "♡"}
+                      ×
                     </button>
 
                   </div>
+                )}
 
-                  <div className="product-info">
+                {/* TOOLS */}
 
-                    <h3>{product.title}</h3>
+                <div className="post-tools">
 
-                    <div className="price">
-                      {product.price.toLocaleString("uk-UA")} грн
-                    </div>
+                  <label className="photo-button">
 
-                    <div className="location">
-                      📍 {product.city}
-                    </div>
+                    🖼️
+                    <span>
+                      Фото
+                    </span>
 
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImage}
+                    />
+
+                  </label>
+
+                  <span className="counter">
+                    {postText.length}/280
+                  </span>
+
+                  <button
+                    className="post-button"
+                    onClick={createPost}
+                  >
+                    Опублікувати
+                  </button>
+
+                </div>
+
+              </div>
+
+            </section>
+
+            {/* FEED */}
+
+            <section className="feed">
+
+              {posts.length === 0 ? (
+
+                <div className="empty">
+
+                  <div className="empty-icon">
+                    📝
                   </div>
 
+                  <h3>
+                    Поки немає постів
+                  </h3>
+
+                  <p>
+                    Напиши перший пост!
+                  </p>
+
                 </div>
 
-              ))}
+              ) : (
 
+                posts.map((post) => (
+
+                  <article
+                    className="post"
+                    key={post.id}
+                  >
+
+                    <img
+                      className="avatar"
+                      src={post.author.avatar}
+                      alt="avatar"
+                    />
+
+                    <div className="post-body">
+
+                      <div className="post-header">
+
+                        <strong>
+                          {post.author.name}
+                        </strong>
+
+                        <span>
+                          @{post.author.username}
+                        </span>
+
+                        <span>
+                          ·
+                        </span>
+
+                        <span>
+                          {post.date}
+                        </span>
+
+                      </div>
+
+                      {/* TEXT */}
+
+                      {post.text && (
+                        <p className="post-text">
+                          {post.text}
+                        </p>
+                      )}
+
+                      {/* IMAGE */}
+
+                      {post.image && (
+                        <img
+                          className="post-image"
+                          src={post.image}
+                          alt="post"
+                        />
+                      )}
+
+                      {/* ACTIONS */}
+
+                      <div className="post-actions">
+
+                        <button>
+                          💬 {post.comments}
+                        </button>
+
+                        <button
+                          className={
+                            post.liked
+                              ? "liked"
+                              : ""
+                          }
+                          onClick={() =>
+                            likePost(post.id)
+                          }
+                        >
+                          ❤️ {post.likes}
+                        </button>
+
+                        <button>
+                          ↗️
+                        </button>
+
+                        {post.author.id ===
+                          user.id && (
+                          <button
+                            className="delete-button"
+                            onClick={() =>
+                              deletePost(post.id)
+                            }
+                          >
+                            🗑️
+                          </button>
+                        )}
+
+                      </div>
+
+                    </div>
+
+                  </article>
+
+                ))
+
+              )}
+
+            </section>
+
+          </>
+        )}
+
+        {/* =========================
+            PROFILE
+        ========================= */}
+
+        {page === "profile" && (
+
+          <div className="profile-page">
+
+            <header className="topbar">
+
+              <h2>
+                Профіль
+              </h2>
+
+            </header>
+
+            {/* COVER */}
+
+            <div className="profile-cover">
             </div>
 
-          </section>
+            {/* PROFILE */}
 
-        </main>
-      )}
+            <div className="profile-info">
 
-      {page === "product" && selectedProduct && (
+              <img
+                className="profile-avatar"
+                src={user.avatar}
+                alt="avatar"
+              />
 
-        <main className="product-page">
+              <h1>
+                {user.name}
+              </h1>
 
-          <button
-            className="back-button"
-            onClick={goHome}
-          >
-            ← Назад
-          </button>
+              <p>
+                @{user.username}
+              </p>
 
-          <img
-            className="product-big-image"
-            src={selectedProduct.image}
-            alt={selectedProduct.title}
-          />
+              <p className="profile-description">
+                👋 Привіт! Це мій профіль у Mini Social.
+              </p>
 
-          <div className="product-details">
+              <div className="profile-stats">
 
-            <div className="product-top">
+                <div>
+                  <strong>
+                    {myPosts.length}
+                  </strong>
 
-              <div>
+                  <span>
+                    Пости
+                  </span>
+                </div>
 
-                <h1>{selectedProduct.title}</h1>
+                <div>
+                  <strong>
+                    0
+                  </strong>
 
-                <div className="big-price">
-                  {selectedProduct.price.toLocaleString("uk-UA")} грн
+                  <span>
+                    Підписники
+                  </span>
+                </div>
+
+                <div>
+                  <strong>
+                    0
+                  </strong>
+
+                  <span>
+                    Підписки
+                  </span>
                 </div>
 
               </div>
 
-              <button
-                className="big-favorite"
-                onClick={() => toggleFavorite(selectedProduct.id)}
-              >
-                {favorites.includes(selectedProduct.id)
-                  ? "❤️"
-                  : "♡"}
-              </button>
+            </div>
+
+            {/* MY POSTS */}
+
+            <div className="profile-posts">
+
+              <h2>
+                Мої пости
+              </h2>
+
+              {myPosts.length === 0 ? (
+
+                <div className="empty">
+
+                  <div className="empty-icon">
+                    📭
+                  </div>
+
+                  <h3>
+                    Тут поки порожньо
+                  </h3>
+
+                  <p>
+                    Створи свій перший пост.
+                  </p>
+
+                </div>
+
+              ) : (
+
+                myPosts.map((post) => (
+
+                  <article
+                    className="post"
+                    key={post.id}
+                  >
+
+                    <img
+                      className="avatar"
+                      src={post.author.avatar}
+                      alt="avatar"
+                    />
+
+                    <div className="post-body">
+
+                      <div className="post-header">
+
+                        <strong>
+                          {post.author.name}
+                        </strong>
+
+                        <span>
+                          @{post.author.username}
+                        </span>
+
+                        <span>
+                          ·
+                        </span>
+
+                        <span>
+                          {post.date}
+                        </span>
+
+                      </div>
+
+                      {post.text && (
+                        <p className="post-text">
+                          {post.text}
+                        </p>
+                      )}
+
+                      {post.image && (
+                        <img
+                          className="post-image"
+                          src={post.image}
+                          alt="post"
+                        />
+                      )}
+
+                      <div className="post-actions">
+
+                        <button>
+                          💬 {post.comments}
+                        </button>
+
+                        <button
+                          className={
+                            post.liked
+                              ? "liked"
+                              : ""
+                          }
+                          onClick={() =>
+                            likePost(post.id)
+                          }
+                        >
+                          ❤️ {post.likes}
+                        </button>
+
+                        <button
+                          className="delete-button"
+                          onClick={() =>
+                            deletePost(post.id)
+                          }
+                        >
+                          🗑️
+                        </button>
+
+                      </div>
+
+                    </div>
+
+                  </article>
+
+                ))
+
+              )}
 
             </div>
 
-            <div className="detail-location">
-              📍 {selectedProduct.city}
-            </div>
-
-            <div className="description">
-
-              <h2>Опис</h2>
-
-              <p>{selectedProduct.description}</p>
-
-            </div>
-
-            <div className="seller">
-
-              <div className="seller-avatar">
-                A
-              </div>
-
-              <div>
-                <strong>Артем</strong>
-                <span>Продавець</span>
-              </div>
-
-            </div>
-
-            <button className="contact-button">
-              💬 Написати продавцю
-            </button>
-
           </div>
 
-        </main>
+        )}
 
-      )}
-
-      {page === "profile" && (
-
-        <main className="profile-page">
-
-          <div className="profile-avatar">
-            A
-          </div>
-
-          <h1>Артем</h1>
-
-          <p>@telegram_user</p>
-
-          <div className="profile-buttons">
-
-            <button>
-              📦 Мої оголошення
-            </button>
-
-            <button>
-              ❤️ Обране ({favorites.length})
-            </button>
-
-            <button
-              onClick={() => setPage("add")}
-            >
-              ➕ Додати оголошення
-            </button>
-
-          </div>
-
-        </main>
-
-      )}
-
-      {page === "add" && (
-
-        <main className="add-page">
-
-          <button
-            className="back-button"
-            onClick={() => setPage("profile")}
-          >
-            ← Назад
-          </button>
-
-          <h1>Нове оголошення</h1>
-
-          <div className="form">
-
-            <label>Назва товару</label>
-            <input placeholder="Наприклад: iPhone 15" />
-
-            <label>Ціна</label>
-            <input
-              type="number"
-              placeholder="Ціна в гривнях"
-            />
-
-            <label>Місто</label>
-            <input placeholder="Житомир" />
-
-            <label>Категорія</label>
-
-            <select>
-              {categories
-                .filter((item) => item !== "Всі")
-                .map((item) => (
-                  <option key={item}>
-                    {item}
-                  </option>
-                ))}
-            </select>
-
-            <label>Опис</label>
-
-            <textarea
-              placeholder="Опишіть свій товар..."
-              rows="5"
-            />
-
-            <button className="publish-button">
-              Опублікувати
-            </button>
-
-          </div>
-
-        </main>
-
-      )}
-
-      <nav className="bottom-nav">
-
-        <button
-          className={page === "home" ? "nav-active" : ""}
-          onClick={goHome}
-        >
-          <span>🏠</span>
-          Головна
-        </button>
-
-        <button
-          onClick={() => setPage("add")}
-        >
-          <span className="add-icon">+</span>
-          Продати
-        </button>
-
-        <button
-          className={page === "profile" ? "nav-active" : ""}
-          onClick={() => setPage("profile")}
-        >
-          <span>👤</span>
-          Профіль
-        </button>
-
-      </nav>
+      </main>
 
     </div>
   );

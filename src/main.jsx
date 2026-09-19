@@ -1,15 +1,10 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import WebApp from "@twa-dev/sdk";
-
-import App from "./App";
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
 import "./index.css";
+import App from "./App.jsx";
 
-WebApp.ready();
-WebApp.expand();
-
-ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
+createRoot(document.getElementById("root")).render(
+  <StrictMode>
     <App />
-  </React.StrictMode>
+  </StrictMode>
 );
